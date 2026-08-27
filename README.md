@@ -27,7 +27,7 @@ The project is divided into two main systems.
 
 ### Robot / ESP32
 
-The ESP32 handles time-sensitive hardware control, including:
+The ESP32-based hardware handles time-sensitive robot control and sensor acquisition, including:
 
 - Servo control
 - Inverse kinematics
@@ -36,6 +36,7 @@ The ESP32 handles time-sensitive hardware control, including:
 - Balance control
 - IMU orientation sensing
 - LiDAR and ToF sensor acquisition
+- ESP32-CAM video streaming
 - Communication with the computer
 
 ### Computer / Python
@@ -81,6 +82,16 @@ RPLIDAR / ToF ──► Sensor Fusion ──► Danger Scoring
 Quadrupedal-Robot/
 ├── firmware/
 │   └── esp32/
+│       ├── CameraWebServer/
+│       │   ├── CameraWebServer.ino
+│       │   ├── app_httpd.cpp
+│       │   ├── board_config.h
+│       │   ├── camera_index.h
+│       │   ├── camera_pins.h
+│       │   ├── ci.yml
+│       │   ├── partitions.csv
+│       │   └── secrets.example.h
+│       │
 │       ├── QuadrupedalRobot/
 │       │   ├── BalanceController.cpp
 │       │   ├── BalanceController.h
@@ -94,9 +105,36 @@ Quadrupedal-Robot/
 │       │   ├── SitToStand.cpp
 │       │   └── SitToStand.h
 │       │
-│       └── SensorBridge/
-│           ├── SensorBridge.ino
-│           └── secrets.example.h
+│       ├── SensorBridge/
+│       │   ├── SensorBridge.ino
+│       │   └── secrets.example.h
+│       │
+│       └── tests/
+│           ├── balance/
+│           │   ├── AssymmetryTest/
+│           │   │   └── AssymmetryTest.ino
+│           │   └── QuadrupedalRobotBalanceTester/
+│           │       └── QuadrupedalRobotBalanceTester.ino
+│           │
+│           ├── imu/
+│           │   ├── IMU_Calibrated_Values_Display/
+│           │   ├── Robot_IMU_Axis_Signs/
+│           │   ├── Robot_IMU_Calibration/
+│           │   ├── Robot_IMU_Simulation/
+│           │   └── Robot_IMU_Values_Test/
+│           │
+│           ├── locomotion/
+│           │   ├── IK_NON_OOP/
+│           │   └── InverseKinematics/
+│           │
+│           ├── motors/
+│           │   ├── LowerMotorTest/
+│           │   ├── SideMotorTest/
+│           │   └── UpperLeftMotorTest/
+│           │
+│           └── sensors/
+│               ├── ToF_Tester/
+│               └── Ultrasonic_Sensor_Tester_ESP/
 │
 ├── models/
 │   └── yolo11n.pt
@@ -110,7 +148,6 @@ Quadrupedal-Robot/
 │   ├── config.py
 │   └── main.py
 │
-├── tests/
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -141,6 +178,10 @@ Quadrupedal-Robot/
 ### Sensor Bridge
 
 `SensorBridge` collects distance-sensor readings on the ESP32 and transmits sensor packets to the computer over UDP.
+
+### Camera Web Server
+
+`CameraWebServer` runs on the ESP32-CAM and provides the video stream used by the computer-vision pipeline.
 
 ### Object Detection
 
@@ -214,21 +255,23 @@ This allows the perception and sensor-fusion pipeline to be tested without sendi
 
 Real Wi-Fi credentials are intentionally excluded from Git.
 
-The repository contains:
+Both ESP32 Wi-Fi projects use local `secrets.h` files:
+
+```text
+firmware/esp32/SensorBridge/secrets.h
+firmware/esp32/CameraWebServer/secrets.h
+```
+
+The repository instead contains safe templates:
 
 ```text
 firmware/esp32/SensorBridge/secrets.example.h
+firmware/esp32/CameraWebServer/secrets.example.h
 ```
 
-Create a local copy named:
+Create a local `secrets.h` file in each required firmware folder and add the local Wi-Fi credentials there.
 
-```text
-secrets.h
-```
-
-and add the local Wi-Fi credentials there.
-
-Example:
+For `SensorBridge`, the format is:
 
 ```cpp
 #ifndef SECRETS_H
@@ -240,7 +283,37 @@ const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 #endif
 ```
 
-`secrets.h` is ignored by Git and should never be committed.
+For `CameraWebServer`, the format is:
+
+```cpp
+#ifndef CAMERA_SECRETS_H
+#define CAMERA_SECRETS_H
+
+const char *ssid = "YOUR_WIFI_NAME";
+const char *password = "YOUR_WIFI_PASSWORD";
+
+#endif
+```
+
+All `secrets.h` files are ignored by Git and should never be committed.
+
+## Hardware Tests and Calibration
+
+Development and calibration sketches are stored separately from the primary firmware under:
+
+```text
+firmware/esp32/tests/
+```
+
+The test sketches are grouped by purpose:
+
+- `balance/` — balance-controller and asymmetry testing
+- `imu/` — IMU calibration, orientation, axis-sign, and simulation tests
+- `locomotion/` — inverse-kinematics and locomotion experiments
+- `motors/` — individual servo/motor calibration tests
+- `sensors/` — ToF and ultrasonic sensor tests
+
+Keeping these sketches separate makes it easier to preserve useful experiments without mixing them into the current robot-control firmware.
 
 ## Current Development Status
 
@@ -273,7 +346,7 @@ const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 Many robot behaviors depend on physical calibration values specific to the current mechanical build. Servo offsets, joint limits, gait parameters, balance-controller constants, and sensor positions should therefore be changed carefully and tested incrementally.
 
-Hardware test and calibration sketches will be organized separately from the primary robot-control firmware so that the main control code remains easy to identify.
+The primary robot-control firmware is kept separate from test and calibration sketches so that the current production code remains easy to identify.
 
 ## Project Goal
 
