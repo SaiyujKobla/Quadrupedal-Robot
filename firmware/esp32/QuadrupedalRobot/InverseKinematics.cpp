@@ -116,7 +116,7 @@ double InverseKinematics::calibrateUpperAngle(double angle) {
   if (orientation == 0) {
     angle = clampDouble(90.0 - degrees(angle), 0.0, 180.0);
 
-    correctedAngle = 7.0 + (angle / 180.0) * (173.0 - 7.0);
+    correctedAngle = 0.000277778 * angle * angle + 0.908333333 * angle + 6.0;
   }
 
   // Back-left upper servo calibration.

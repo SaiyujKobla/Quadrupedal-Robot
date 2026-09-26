@@ -19,9 +19,9 @@ float calibrateUpper(float angle) {
     angle = constrain(angle, 0.0, 180.0);
 
     float corrected =
-        0.000154321 * angle * angle +
-        0.930555556 * angle +
-        13.0;
+        0.000277778 * angle * angle +
+        0.908333333 * angle +
+        6.0;
 
     return corrected * 0.75;
 }
@@ -34,11 +34,12 @@ void setup() {
 
 
  // left
-//  upperMotor.write((180 - 15) * 3.0 / 4.0);
+//  upperMotor.write((0 + 6) * 3.0 / 4.0);
 //  delay(2000);
-//  upperMotor.write((90 - 6) * 3.0 / 4.0);
+//  upperMotor.write((90 + 0) * 3.0 / 4.0);
 //  delay(2000);
-//  upperMotor.write((6) * 3.0 / 4.0);
+//  upperMotor.write((180 - 1.5) * 3.0 / 4.0);
+//  delay(2000);
 
  upperMotor.write(calibrateUpper(0));
  delay(2000);
