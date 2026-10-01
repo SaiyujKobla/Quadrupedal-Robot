@@ -274,26 +274,26 @@ try:
                 thickness=1,
             )
 
-        legend_lines = (
-            ("Green: tracked objects + trails", TRACK_COLOR),
-            ("Magenta: overlap clusters", CLUSTER_COLOR),
-            ("Orange: merged clusters", MERGED_COLOR),
-        )
+        # legend_lines = (
+        #     ("Green: tracked objects + trails", TRACK_COLOR),
+        #     ("Magenta: overlap clusters", CLUSTER_COLOR),
+        #     ("Orange: merged clusters", MERGED_COLOR),
+        # )
 
-        legend_y = 24
+        # legend_y = 24
 
-        for legend_text, legend_color in legend_lines:
-            draw_text_box(
-                annotated,
-                legend_text,
-                10,
-                legend_y,
-                legend_color,
-                scale=0.44,
-                thickness=1,
-            )
+        # for legend_text, legend_color in legend_lines:
+        #     draw_text_box(
+        #         annotated,
+        #         legend_text,
+        #         10,
+        #         legend_y,
+        #         legend_color,
+        #         scale=0.44,
+        #         thickness=1,
+        #     )
 
-            legend_y += 26
+        #     legend_y += 26
 
         cv2.imshow(
             WINDOW_NAME,
