@@ -20,7 +20,7 @@ const uint16_t SENSOR_LOCAL_UDP_PORT = 5007;
 
 const bool ENABLE_LIDAR = true;
 const bool ENABLE_TOF = true;
-const bool ENABLE_ULTRASONIC = false;
+const bool ENABLE_ULTRASONIC = true;
 
 // ============================================================
 // RPLIDAR A1
@@ -298,10 +298,29 @@ bool readTofMm(float& distanceMm) {
 
   VL53L0X_RangingMeasurementData_t measurement;
 
+  // tof.rangingTest(&measurement, false);
+
+  // if (measurement.RangeStatus != 0) {
+  //   return false;
+  // }
   tof.rangingTest(&measurement, false);
 
+  static unsigned long lastTofDebugMs = 0;
+
+  if (millis() - lastTofDebugMs >= 1000) {
+      lastTofDebugMs = millis();
+
+      Serial.print("ToF RangeStatus: ");
+      Serial.print(measurement.RangeStatus);
+
+      Serial.print("   Distance: ");
+      Serial.print(measurement.RangeMilliMeter);
+
+      Serial.println(" mm");
+  }
+
   if (measurement.RangeStatus != 0) {
-    return false;
+      return false;
   }
 
   distanceMm =
