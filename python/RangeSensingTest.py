@@ -117,6 +117,26 @@ sensor_hub = SensorHub(
 def timestamp_string() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
 
+def pad_to_height(image, target_height):
+    height, width = image.shape[:2]
+
+    if height >= target_height:
+        return image
+
+    total_padding = target_height - height
+
+    top_padding = total_padding // 2
+    bottom_padding = total_padding - top_padding
+
+    return cv2.copyMakeBorder(
+        image,
+        top_padding,
+        bottom_padding,
+        0,
+        0,
+        cv2.BORDER_CONSTANT,
+        value=(25, 25, 25),
+    )
 
 def format_age(age_s: float) -> str:
     if age_s == float("inf"):
@@ -496,25 +516,27 @@ try:
             sensor_snapshot,
         )
 
-        camera_display = cv2.resize(
-            frame,
-            (
-                DISPLAY_CAMERA_WIDTH,
-                DISPLAY_CAMERA_HEIGHT,
-            ),
-            interpolation=cv2.INTER_LINEAR,
-        )
+        camera_display = frame.copy()
 
-        scale_x = DISPLAY_CAMERA_WIDTH / frame.shape[1]
-        scale_y = DISPLAY_CAMERA_HEIGHT / frame.shape[0]
+        # camera_display = cv2.resize(
+        #     frame,
+        #     (
+        #         DISPLAY_CAMERA_WIDTH,
+        #         DISPLAY_CAMERA_HEIGHT,
+        #     ),
+        #     interpolation=cv2.INTER_LINEAR,
+        # )
+
+        # scale_x = DISPLAY_CAMERA_WIDTH / frame.shape[1]
+        # scale_y = DISPLAY_CAMERA_HEIGHT / frame.shape[0]
 
         for obj in objects:
             x1, y1, x2, y2 = obj["box"]
 
-            x1 = int(x1 * scale_x)
-            y1 = int(y1 * scale_y)
-            x2 = int(x2 * scale_x)
-            y2 = int(y2 * scale_y)
+            # x1 = int(x1 * scale_x)
+            # y1 = int(y1 * scale_y)
+            # x2 = int(x2 * scale_x)
+            # y2 = int(y2 * scale_y)
 
             cv2.rectangle(
                 camera_display,
@@ -527,10 +549,10 @@ try:
         for cluster in danger_report.cluster_scores:
             x1, y1, x2, y2 = cluster["box"]
 
-            x1 = int(x1 * scale_x)
-            y1 = int(y1 * scale_y)
-            x2 = int(x2 * scale_x)
-            y2 = int(y2 * scale_y)
+            # x1 = int(x1 * scale_x)
+            # y1 = int(y1 * scale_y)
+            # x2 = int(x2 * scale_x)
+            # y2 = int(y2 * scale_y)
 
             cv2.rectangle(
                 camera_display,
@@ -540,10 +562,38 @@ try:
                 3,
             )
 
+        # panel = build_range_panel(
+        #     decision,
+        #     danger_report,
+        #     sensor_snapshot,
+        # )
+
+        # display_frame = np.hstack(
+        #     (
+        #         camera_display,
+        #         panel,
+        #     )
+        # )
+        
         panel = build_range_panel(
             decision,
             danger_report,
             sensor_snapshot,
+        )
+
+        target_height = max(
+            camera_display.shape[0],
+            panel.shape[0],
+        )
+
+        camera_display = pad_to_height(
+            camera_display,
+            target_height,
+        )
+
+        panel = pad_to_height(
+            panel,
+            target_height,
         )
 
         display_frame = np.hstack(
