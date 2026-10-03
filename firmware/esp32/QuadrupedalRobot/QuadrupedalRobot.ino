@@ -8,6 +8,8 @@
 
 #include "SitToStand.h"
 
+#include "DanceController.h"
+
 #include <math.h>
 
 // ------------------------------------------------------------
@@ -375,6 +377,13 @@ BalanceController balance(
   PITCH_KP,
 
   PITCH_KD);
+
+DanceController dance(
+  BODY_LENGTH,
+  BODY_WIDTH,
+  COM_OFFSET_X,
+  COM_OFFSET_Z
+);
 
 GaitCycle swingGait(
 
@@ -4302,6 +4311,65 @@ bool runCrawlCycle() {
 }
 
 // ============================================================
+// DANCE SERIAL CONTROLS
+// ============================================================
+//
+// D = start/restart dance
+// S = smoothly stop dance and return to balanced neutral
+// N = immediately command neutral
+// ============================================================
+
+void handleDanceSerial() {
+
+  while (
+    Serial.available() > 0
+  ) {
+
+    char command =
+      Serial.read();
+
+
+    if (
+      command == 'd'
+      || command == 'D'
+    ) {
+
+      dance.start();
+
+      Serial.println(
+        "Dance started."
+      );
+    }
+
+
+    else if (
+      command == 's'
+      || command == 'S'
+    ) {
+
+      dance.stop();
+
+      Serial.println(
+        "Dance stopping and returning to neutral."
+      );
+    }
+
+
+    else if (
+      command == 'n'
+      || command == 'N'
+    ) {
+
+      dance.forceNeutral();
+
+      Serial.println(
+        "Dance forced to neutral."
+      );
+    }
+  }
+}
+
+// ============================================================
 
 // SETUP
 
@@ -4312,6 +4380,15 @@ bool runCrawlCycle() {
 // ============================================================
 
 void setup() {
+
+  Serial.begin(
+    115200
+  );
+
+  delay(
+    200
+  );
+
 
   frontLeftLeg.begin();
 
@@ -4374,35 +4451,41 @@ void setup() {
 
     WAIT_AFTER_INITIAL_BALANCE);
 
-  // ----------------------------------------------------------
+// ----------------------------------------------------------
+// 5. INITIALIZE NERC DANCE
+// ----------------------------------------------------------
+//
+// initialBalance() has already calculated the physical
+// balanced targets for THIS robot.
+//
+// Use those targets as the neutral center of the dance.
+// ----------------------------------------------------------
 
-  // 5. WALK
+dance.begin(
+  balancedFrontLeft,
+  balancedFrontRight,
+  balancedBackLeft,
+  balancedBackRight
+);
 
-  // ----------------------------------------------------------
 
-  for (
+// Start automatically.
+//
+// Therefore at NERC you can simply power on the robot:
+//
+// sit -> stand -> balance -> dance
 
-    int cycle = 0;
+dance.start();
 
-    cycle < CRAWL_CYCLES_TO_RUN;
 
-    cycle++) {
+Serial.println(
+  "NERC dance started."
+);
 
-    if (
+Serial.println(
+  "Commands: D=start, S=stop smoothly, N=neutral."
+);
 
-      !runCrawlCycle()) {
-
-      haltRobot();
-    }
-  }
-
-  // ----------------------------------------------------------
-
-  // 6. FINAL HOLD
-
-  // ----------------------------------------------------------
-
-  commandBalancedPosition();
 }
 
 // ------------------------------------------------------------
@@ -4413,9 +4496,52 @@ void setup() {
 
 void loop() {
 
+  unsigned long loopStartTime =
+    millis();
+
+
+  // Keep the IMU updated even though the choreography itself
+  // uses the already-balanced standing pose as its baseline.
+
   updateIMU();
 
-  delay(
 
-    CONTROL_PERIOD_MS);
+  // Allow D / S / N commands from Serial Monitor.
+
+  handleDanceSerial();
+
+
+  // Calculate the current smooth dance pose.
+
+  DanceOutput danceOutput =
+    dance.update();
+
+
+  // Send it through the robot's existing IK system.
+
+  commandFootTargets(
+    danceOutput.frontLeft,
+    danceOutput.frontRight,
+    danceOutput.backLeft,
+    danceOutput.backRight
+  );
+
+
+  // Preserve the existing 10 ms control-loop timing.
+
+  unsigned long elapsedTime =
+    millis()
+    - loopStartTime;
+
+
+  if (
+    elapsedTime
+    < CONTROL_PERIOD_MS
+  ) {
+
+    delay(
+      CONTROL_PERIOD_MS
+      - elapsedTime
+    );
+  }
 }
