@@ -1,420 +1,166 @@
 #include "DanceController.h"
 #include <math.h>
 
-
 // ============================================================
-// NERC DANCE CHOREOGRAPHY
+// TUNING VALUES
 // ============================================================
 //
-// FORMAT:
+// The forward pitch and roll use 12 degrees because the current
+// robot code already uses 12 degrees as the normal maximum
+// BalanceController correction angle. The requested nose-up pose
+// is kept at 20 degrees above horizontal.
 //
-// {
-//   forward cm,
-//   right cm,
-//   height cm,
-//   roll degrees,
-//   pitch degrees,
-//   transition time milliseconds
-// }
-//
-// IMPORTANT:
-//
-// Start with these conservative values.
-//
-// Once the complete routine works reliably, the easiest place
-// to make the dance more dramatic is THIS array.
-//
-// Do not immediately jump to 20-30 degree tilts.
+// Change these constants first if you want to tune the routine.
 // ============================================================
 
-static const DancePose DANCE_SEQUENCE[] = {
-
-  // ----------------------------------------------------------
-  // 1. INTRO / NEUTRAL HOLD
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    700
-  },
-
-
-  // ----------------------------------------------------------
-  // 2. LEFT SWAY
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    -1.20f,
-    0.00f,
-
-    4.5f,
-    0.0f,
-
-    850
-  },
-
-
-  // ----------------------------------------------------------
-  // 3. RIGHT SWAY
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    1.20f,
-    0.00f,
-
-    -4.5f,
-    0.0f,
-
-    950
-  },
-
-
-  // ----------------------------------------------------------
-  // 4. CENTER
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // 5. FORWARD BOW
-  // ----------------------------------------------------------
-
-  {
-    1.00f,
-    0.00f,
-    -0.55f,
-
-    0.0f,
-    4.0f,
-
-    850
-  },
-
-
-  // ----------------------------------------------------------
-  // 6. BACKWARD LEAN
-  // ----------------------------------------------------------
-
-  {
-    -1.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    -4.0f,
-
-    950
-  },
-
-
-  // ----------------------------------------------------------
-  // 7. CENTER
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // 8. SIGNATURE BOTTOM-LEFT / BACKWARD DIP
-  //
-  // This is based on the move you discussed:
-  //
-  // left
-  // backward
-  // downward
-  // left lean
-  // nose slightly upward
-  // ----------------------------------------------------------
-
-  {
-    -1.00f,
-    -1.10f,
-    -0.95f,
-
-    4.5f,
-    -3.5f,
-
-    950
-  },
-
-
-  // Hold that pose briefly.
-
-  {
-    -1.00f,
-    -1.10f,
-    -0.95f,
-
-    4.5f,
-    -3.5f,
-
-    450
-  },
-
-
-  // Return to center.
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    850
-  },
-
-
-  // ==========================================================
-  // 9. FOUR DIAGONAL DIRECTIONS
-  // ==========================================================
-
-
-  // ----------------------------------------------------------
-  // FRONT-LEFT
-  // ----------------------------------------------------------
-
-  {
-    0.90f,
-    -0.90f,
-    -0.20f,
-
-    2.5f,
-    2.5f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // FRONT-RIGHT
-  // ----------------------------------------------------------
-
-  {
-    0.90f,
-    0.90f,
-    -0.20f,
-
-    -2.5f,
-    2.5f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // BACK-RIGHT
-  // ----------------------------------------------------------
-
-  {
-    -0.90f,
-    0.90f,
-    -0.20f,
-
-    -2.5f,
-    -2.5f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // BACK-LEFT
-  // ----------------------------------------------------------
-
-  {
-    -0.90f,
-    -0.90f,
-    -0.20f,
-
-    2.5f,
-    -2.5f,
-
-    650
-  },
-
-
-  // ----------------------------------------------------------
-  // CENTER
-  // ----------------------------------------------------------
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    700
-  },
-
-
-  // ==========================================================
-  // 10. VERTICAL BOUNCES
-  // ==========================================================
-
-
-  // Down.
-
-  {
-    0.00f,
-    0.00f,
-    -0.85f,
-
-    0.0f,
-    0.0f,
-
-    500
-  },
-
-
-  // Up slightly.
-
-  {
-    0.00f,
-    0.00f,
-    0.30f,
-
-    0.0f,
-    0.0f,
-
-    500
-  },
-
-
-  // Down again.
-
-  {
-    0.00f,
-    0.00f,
-    -0.85f,
-
-    0.0f,
-    0.0f,
-
-    500
-  },
-
-
-  // Center.
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    600
-  },
-
-
-  // ==========================================================
-  // 11. QUICK SIDE ACCENTS
-  // ==========================================================
-
-
-  {
-    0.00f,
-    -0.85f,
-    0.00f,
-
-    3.2f,
-    0.0f,
-
-    380
-  },
-
-
-  {
-    0.00f,
-    0.85f,
-    0.00f,
-
-    -3.2f,
-    0.0f,
-
-    380
-  },
-
-
-  {
-    0.00f,
-    -0.85f,
-    0.00f,
-
-    3.2f,
-    0.0f,
-
-    380
-  },
-
-
-  {
-    0.00f,
-    0.85f,
-    0.00f,
-
-    -3.2f,
-    0.0f,
-
-    380
-  },
-
-
-  // ==========================================================
-  // 12. FINALE / RETURN TO NEUTRAL
-  // ==========================================================
-
-  {
-    0.00f,
-    0.00f,
-    0.00f,
-
-    0.0f,
-    0.0f,
-
-    900
-  }
+static const float FORWARD_PITCH_DEG = 12.0f;
+static const float LEFT_ROLL_DEG = 12.0f;
+static const float RIGHT_ROLL_DEG = -12.0f;
+static const float NOSE_UP_PITCH_DEG = -20.0f;
+
+static const unsigned long TILT_MOVE_MS = 900;
+static const unsigned long TILT_HOLD_MS = 300;
+
+// The 20-degree nose-up pose is a larger body excursion than the
+// ordinary 12-degree pitch/roll moves. Give transitions into that
+// pose extra time so the robot does not throw its mass backward.
+static const unsigned long NOSE_UP_MOVE_MS = 1500;
+
+// At the start of pass 2 the pitch reverses directly from -20 deg
+// nose-up to +12 deg nose-down: a 32-degree change. This is the
+// single largest angular transition in the routine, so slow only
+// this move substantially.
+static const unsigned long LARGE_PITCH_REVERSAL_MS = 1900;
+
+// Keep the larger 3 cm square requested during testing. The square
+// already uses the 7th-order smootherstep below; doubling the square
+// from 1.5 cm to 3.0 cm without changing 700 ms doubled its speed.
+// 1400 ms restores roughly the old translation speed while the
+// smootherstep keeps velocity/acceleration gentle at each corner.
+static const float SQUARE_SIDE_CM = 3.00f;
+static const unsigned long SQUARE_MOVE_MS = 1400;
+static const unsigned long SQUARE_HOLD_MS = 220;
+
+// Helper macro only used to make the choreography tables readable.
+#define POSE(FWD, RIGHT, HEIGHT, ROLL, PITCH, TIME_MS) \
+  { (FWD), (RIGHT), (HEIGHT), (ROLL), (PITCH), (TIME_MS) }
+
+// ============================================================
+// PITCH / ROLL SEQUENCE
+// ============================================================
+//
+// One pass:
+//   neutral
+//   -> pitch forward
+//   -> roll left
+//   -> roll right
+//   -> pitch 20 deg above horizontal
+//
+// Then the exact pass is repeated once more.
+//
+// The repeated identical frame after each move is simply a hold.
+// No active balance feedback is used during these poses.
+// ============================================================
+
+static const DancePose PITCH_ROLL_SEQUENCE[] = {
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 300),
+
+  // Pass 1
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, FORWARD_PITCH_DEG, TILT_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, FORWARD_PITCH_DEG, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, LEFT_ROLL_DEG, 0.0f, TILT_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, LEFT_ROLL_DEG, 0.0f, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, RIGHT_ROLL_DEG, 0.0f, TILT_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, RIGHT_ROLL_DEG, 0.0f, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, NOSE_UP_PITCH_DEG, NOSE_UP_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, NOSE_UP_PITCH_DEG, TILT_HOLD_MS),
+
+  // Pass 2
+  // Largest pitch reversal: -20 deg nose-up -> +12 deg nose-down.
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, FORWARD_PITCH_DEG, LARGE_PITCH_REVERSAL_MS),
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, FORWARD_PITCH_DEG, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, LEFT_ROLL_DEG, 0.0f, TILT_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, LEFT_ROLL_DEG, 0.0f, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, RIGHT_ROLL_DEG, 0.0f, TILT_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, RIGHT_ROLL_DEG, 0.0f, TILT_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, NOSE_UP_PITCH_DEG, NOSE_UP_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, NOSE_UP_PITCH_DEG, TILT_HOLD_MS),
+
+  // Return to the balanced neutral baseline before the real rebalance.
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 900)
 };
 
+static const size_t PITCH_ROLL_FRAME_COUNT =
+  sizeof(PITCH_ROLL_SEQUENCE) / sizeof(PITCH_ROLL_SEQUENCE[0]);
 
-// Number of poses in the choreography.
+// ============================================================
+// SQUARE BODY-TRANSLATION SEQUENCE
+// ============================================================
+//
+// This follows the user's literal movement order:
+//
+//   forward -> right -> backward -> left -> neutral
+//
+// Because DancePose translations are absolute relative to neutral,
+// the four corners are:
+//   (0,0)
+//   (forward,0)
+//   (forward,right)
+//   (0,right)
+//   (0,0)
+//
+// That traces a real little square rather than a diamond.
+//
+// The same requested direction is performed twice.
+//
+// Every segment is interpolated by DanceController::update() using
+// smoothProgress(), the same 7th-order smootherstep used by the
+// robot's support-shift code. SQUARE_MOVE_MS controls how slowly
+// the 3 cm translation travels along each edge.
+// ============================================================
 
-static const size_t DANCE_FRAME_COUNT =
-  sizeof(DANCE_SEQUENCE) /
-  sizeof(DANCE_SEQUENCE[0]);
+static const DancePose SQUARE_SEQUENCE[] = {
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 300),
 
+  // Square 1
+  POSE(SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(SQUARE_SIDE_CM, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(SQUARE_SIDE_CM, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(0.0f, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(0.0f, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  // Square 2
+  POSE(SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(SQUARE_SIDE_CM, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(SQUARE_SIDE_CM, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(0.0f, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+  POSE(0.0f, SQUARE_SIDE_CM, 0.0f, 0.0f, 0.0f, SQUARE_HOLD_MS),
+
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, SQUARE_MOVE_MS),
+
+  // End exactly at neutral before the real rebalance.
+  POSE(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 500)
+};
+
+static const size_t SQUARE_FRAME_COUNT =
+  sizeof(SQUARE_SEQUENCE) / sizeof(SQUARE_SEQUENCE[0]);
+
+#undef POSE
 
 // ============================================================
 // CONSTRUCTOR
@@ -423,333 +169,64 @@ static const size_t DANCE_FRAME_COUNT =
 DanceController::DanceController(
   float bodyLengthCm,
   float bodyWidthCm,
-
   float rotationCenterOffsetXcm,
   float rotationCenterOffsetZcm
 ) {
+  bodyLength = fabs(bodyLengthCm);
+  bodyWidth = fabs(bodyWidthCm);
 
-  bodyLength =
-    fabs(bodyLengthCm);
+  rotationCenterOffsetX = rotationCenterOffsetXcm;
+  rotationCenterOffsetZ = rotationCenterOffsetZcm;
 
-  bodyWidth =
-    fabs(bodyWidthCm);
+  baseFrontLeft = {0.0f, 0.0f, 0.0f};
+  baseFrontRight = {0.0f, 0.0f, 0.0f};
+  baseBackLeft = {0.0f, 0.0f, 0.0f};
+  baseBackRight = {0.0f, 0.0f, 0.0f};
 
+  fromPose = neutralPose();
+  currentPose = neutralPose();
 
-  rotationCenterOffsetX =
-    rotationCenterOffsetXcm;
+  activeSequence = nullptr;
+  activeFrameCount = 0;
+  frameIndex = 0;
+  frameStartTime = 0;
 
-  rotationCenterOffsetZ =
-    rotationCenterOffsetZcm;
-
-
-  baseFrontLeft = {
-    0.0f,
-    0.0f,
-    0.0f
-  };
-
-  baseFrontRight = {
-    0.0f,
-    0.0f,
-    0.0f
-  };
-
-  baseBackLeft = {
-    0.0f,
-    0.0f,
-    0.0f
-  };
-
-  baseBackRight = {
-    0.0f,
-    0.0f,
-    0.0f
-  };
-
-
-  fromPose =
-    neutralPose();
-
-  currentPose =
-    neutralPose();
-
-  stopFromPose =
-    neutralPose();
-
-
-  frameIndex =
-    0;
-
-  frameStartTime =
-    0;
-
-  stopStartTime =
-    0;
-
-
-  initialized =
-    false;
-
-  running =
-    false;
-
-  stopping =
-    false;
+  initialized = false;
+  running = false;
+  finished = false;
 }
 
-
 // ============================================================
-// NEUTRAL POSE
+// BASIC POSE HELPERS
 // ============================================================
 
 DancePose DanceController::neutralPose() const {
-
   DancePose pose;
-
-  pose.forwardCm =
-    0.0f;
-
-  pose.rightCm =
-    0.0f;
-
-  pose.heightCm =
-    0.0f;
-
-
-  pose.rollDeg =
-    0.0f;
-
-  pose.pitchDeg =
-    0.0f;
-
-
-  pose.durationMs =
-    0;
-
-
+  pose.forwardCm = 0.0f;
+  pose.rightCm = 0.0f;
+  pose.heightCm = 0.0f;
+  pose.rollDeg = 0.0f;
+  pose.pitchDeg = 0.0f;
+  pose.durationMs = 0;
   return pose;
 }
 
-
-// ============================================================
-// BEGIN
-// ============================================================
-//
-// IMPORTANT:
-//
-// The supplied foot targets should be the robot's BALANCED
-// standing targets.
-//
-// That means the dance is built on top of the robot's real
-// balanced position rather than assuming every leg is exactly
-// at X=0, Y=20, Z=0.
-// ============================================================
-
-void DanceController::begin(
-  const FootTarget &frontLeft,
-  const FootTarget &frontRight,
-  const FootTarget &backLeft,
-  const FootTarget &backRight
-) {
-
-  baseFrontLeft =
-    frontLeft;
-
-  baseFrontRight =
-    frontRight;
-
-  baseBackLeft =
-    backLeft;
-
-  baseBackRight =
-    backRight;
-
-
-  fromPose =
-    neutralPose();
-
-  currentPose =
-    neutralPose();
-
-  stopFromPose =
-    neutralPose();
-
-
-  frameIndex =
-    0;
-
-  frameStartTime =
-    millis();
-
-  stopStartTime =
-    0;
-
-
-  initialized =
-    true;
-
-  running =
-    false;
-
-  stopping =
-    false;
-}
-
-
-// ============================================================
-// START
-// ============================================================
-
-void DanceController::start() {
-
-  if (!initialized) {
-    return;
-  }
-
-
-  fromPose =
-    currentPose;
-
-
-  frameIndex =
-    0;
-
-  frameStartTime =
-    millis();
-
-
-  running =
-    true;
-
-  stopping =
-    false;
-}
-
-
-// ============================================================
-// STOP
-// ============================================================
-//
-// This does NOT instantly snap the legs back.
-//
-// It smoothly returns the body to the balanced neutral pose.
-// ============================================================
-
-void DanceController::stop() {
-
-  if (!initialized) {
-    return;
-  }
-
-
-  stopFromPose =
-    currentPose;
-
-  stopStartTime =
-    millis();
-
-
-  running =
-    false;
-
-  stopping =
-    true;
-}
-
-
-// ============================================================
-// FORCE NEUTRAL
-// ============================================================
-
-void DanceController::forceNeutral() {
-
-  if (!initialized) {
-    return;
-  }
-
-
-  fromPose =
-    neutralPose();
-
-  currentPose =
-    neutralPose();
-
-  stopFromPose =
-    neutralPose();
-
-
-  frameIndex =
-    0;
-
-  frameStartTime =
-    millis();
-
-  stopStartTime =
-    0;
-
-
-  running =
-    false;
-
-  stopping =
-    false;
-}
-
-
-// ============================================================
-// IS ACTIVE
-// ============================================================
-
-bool DanceController::isActive() const {
-
-  return running || stopping;
-}
-
-
-// ============================================================
-// SMOOTH PROGRESS
-// ============================================================
-//
-// 7th-order smootherstep.
-//
-// Position, velocity, acceleration, and jerk all transition
-// smoothly at the endpoints.
-//
-// This is similar to the smoothing already used for the body
-// support shifts in QuadrupedalRobot.ino.
-// ============================================================
-
-float DanceController::smoothProgress(
-  float progress
-) const {
-
+float DanceController::smoothProgress(float progress) const {
   if (progress < 0.0f) {
-    progress =
-      0.0f;
+    progress = 0.0f;
   }
-
 
   if (progress > 1.0f) {
-    progress =
-      1.0f;
+    progress = 1.0f;
   }
 
-
-  float p2 =
-    progress * progress;
-
-  float p4 =
-    p2 * p2;
-
-  float p5 =
-    p4 * progress;
-
-  float p6 =
-    p5 * progress;
-
-  float p7 =
-    p6 * progress;
-
+  // Same 7th-order smootherstep already used in the robot's
+  // support-shift code.
+  float p2 = progress * progress;
+  float p4 = p2 * p2;
+  float p5 = p4 * progress;
+  float p6 = p5 * progress;
+  float p7 = p6 * progress;
 
   return
     35.0f * p4
@@ -758,599 +235,365 @@ float DanceController::smoothProgress(
     - 20.0f * p7;
 }
 
-
-// ============================================================
-// INTERPOLATE POSE
-// ============================================================
-
 DancePose DanceController::interpolatePose(
   const DancePose &startPose,
   const DancePose &endPose,
   float weight
 ) const {
-
   DancePose result;
-
 
   result.forwardCm =
     startPose.forwardCm
-    + (
-        endPose.forwardCm
-        - startPose.forwardCm
-      )
-    * weight;
-
+    + (endPose.forwardCm - startPose.forwardCm) * weight;
 
   result.rightCm =
     startPose.rightCm
-    + (
-        endPose.rightCm
-        - startPose.rightCm
-      )
-    * weight;
-
+    + (endPose.rightCm - startPose.rightCm) * weight;
 
   result.heightCm =
     startPose.heightCm
-    + (
-        endPose.heightCm
-        - startPose.heightCm
-      )
-    * weight;
-
+    + (endPose.heightCm - startPose.heightCm) * weight;
 
   result.rollDeg =
     startPose.rollDeg
-    + (
-        endPose.rollDeg
-        - startPose.rollDeg
-      )
-    * weight;
-
+    + (endPose.rollDeg - startPose.rollDeg) * weight;
 
   result.pitchDeg =
     startPose.pitchDeg
-    + (
-        endPose.pitchDeg
-        - startPose.pitchDeg
-      )
-    * weight;
+    + (endPose.pitchDeg - startPose.pitchDeg) * weight;
 
-
-  result.durationMs =
-    0;
-
+  result.durationMs = 0;
 
   return result;
 }
 
-
 // ============================================================
-// TRANSFORM ONE FOOT TARGET
+// EXACT BALANCE-CONTROLLER ROTATION MATH
+// ============================================================
+//
+// This is intentionally the same coordinate conversion and the
+// same inverse pitch / inverse roll equations used by the current
+// BalanceController::calculateCorrectedFootTarget().
+//
+// The dance does NOT call BalanceController::update() and does NOT
+// use IMU feedback while a scripted motion is running.
 // ============================================================
 
-FootTarget DanceController::transformTarget(
+FootTarget DanceController::rotateTargetUsingBalanceMath(
   const FootTarget &baseTarget,
-
   float hipX,
   float hipZ,
-
   bool isLeftLeg,
-
-  const DancePose &pose
+  float rollDeg,
+  float pitchDeg
 ) const {
+  float zAxisSign = isLeftLeg ? 1.0f : -1.0f;
 
-  /*
-    SAME COORDINATE CONVENTION AS THE EXISTING ROBOT CODE
+  // Leg-local -> body-frame hip-relative vector.
+  float bodyRelativeFootX = -baseTarget.x;
+  float bodyRelativeFootY = baseTarget.y;
+  float bodyRelativeFootZ = zAxisSign * baseTarget.z;
 
-    BODY:
+  // Hip-relative -> rotation-center-relative.
+  float centerToFootX = hipX + bodyRelativeFootX;
+  float centerToFootY = bodyRelativeFootY;
+  float centerToFootZ = hipZ + bodyRelativeFootZ;
 
-      +X = forward
-      +Y = downward
-      +Z = robot's right
+  float roll = rollDeg * PI / 180.0f;
+  float pitch = pitchDeg * PI / 180.0f;
 
+  float cosRoll = cos(roll);
+  float sinRoll = sin(roll);
+  float cosPitch = cos(pitch);
+  float sinPitch = sin(pitch);
 
-    LEG LOCAL:
-
-      +X = backward
-      +Y = downward
-      +Z = inward
-
-
-    Therefore:
-
-      local X -> body X:
-
-        bodyX = -localX
-
-
-      LEFT local Z -> body Z:
-
-        bodyZ = +localZ
-
-
-      RIGHT local Z -> body Z:
-
-        bodyZ = -localZ
-  */
-
-
-  float zAxisSign;
-
-  if (isLeftLeg) {
-
-    zAxisSign =
-      1.0f;
-  }
-
-  else {
-
-    zAxisSign =
-      -1.0f;
-  }
-
-
-  // ----------------------------------------------------------
-  // LEG-LOCAL TARGET -> BODY-FRAME VECTOR FROM HIP
-  // ----------------------------------------------------------
-
-  float bodyRelativeX =
-    -baseTarget.x;
-
-  float bodyRelativeY =
-    baseTarget.y;
-
-  float bodyRelativeZ =
-    zAxisSign
-    * baseTarget.z;
-
-
-  // ----------------------------------------------------------
-  // VECTOR FROM BODY ROTATION CENTER -> FOOT
-  // ----------------------------------------------------------
-
-  float centerToFootX =
-    hipX
-    + bodyRelativeX;
-
-  float centerToFootY =
-    bodyRelativeY;
-
-  float centerToFootZ =
-    hipZ
-    + bodyRelativeZ;
-
-
-  // ----------------------------------------------------------
-  // BODY TRANSLATION
-  // ----------------------------------------------------------
-  //
-  // Feet are treated as fixed on the floor.
-  //
-  // So if the body moves forward,
-  // the feet move backward relative to the body.
-  // ----------------------------------------------------------
-
-  centerToFootX -=
-    pose.forwardCm;
-
-  centerToFootZ -=
-    pose.rightCm;
-
-
-  // If the body rises, feet become farther below it.
-
-  centerToFootY +=
-    pose.heightCm;
-
-
-  // ----------------------------------------------------------
-  // ANGLES
-  // ----------------------------------------------------------
-
-  float roll =
-    pose.rollDeg
-    * PI
-    / 180.0f;
-
-
-  float pitch =
-    pose.pitchDeg
-    * PI
-    / 180.0f;
-
-
-  float cosRoll =
-    cos(roll);
-
-  float sinRoll =
-    sin(roll);
-
-
-  float cosPitch =
-    cos(pitch);
-
-  float sinPitch =
-    sin(pitch);
-
-
-  // ----------------------------------------------------------
-  // INVERSE PITCH ROTATION
-  // ----------------------------------------------------------
-  //
-  // Same convention already used by BalanceController.
-  // ----------------------------------------------------------
-
+  // Inverse pitch rotation: identical to BalanceController.
   float pitchCorrectedX =
     cosPitch * centerToFootX
     + sinPitch * centerToFootY;
-
 
   float pitchCorrectedY =
     -sinPitch * centerToFootX
     + cosPitch * centerToFootY;
 
+  float pitchCorrectedZ = centerToFootZ;
 
-  float pitchCorrectedZ =
-    centerToFootZ;
-
-
-  // ----------------------------------------------------------
-  // INVERSE ROLL ROTATION
-  // ----------------------------------------------------------
-
-  float rollCorrectedX =
-    pitchCorrectedX;
-
+  // Inverse roll rotation: identical to BalanceController.
+  float rollCorrectedX = pitchCorrectedX;
 
   float rollCorrectedY =
     cosRoll * pitchCorrectedY
     + sinRoll * pitchCorrectedZ;
 
-
   float rollCorrectedZ =
     -sinRoll * pitchCorrectedY
     + cosRoll * pitchCorrectedZ;
 
-
-  // ----------------------------------------------------------
-  // ROTATION CENTER -> PARTICULAR HIP
-  // ----------------------------------------------------------
-
+  // Rotation-center-relative -> hip-relative.
   float correctedBodyRelativeX =
-    rollCorrectedX
-    - hipX;
-
+    rollCorrectedX - hipX;
 
   float correctedBodyRelativeY =
     rollCorrectedY;
 
-
   float correctedBodyRelativeZ =
-    rollCorrectedZ
-    - hipZ;
+    rollCorrectedZ - hipZ;
 
-
-  // ----------------------------------------------------------
-  // BODY AXES -> LEG-LOCAL IK AXES
-  // ----------------------------------------------------------
-
+  // Body axes -> leg-local IK axes.
   FootTarget output;
 
-
-  output.x =
-    -correctedBodyRelativeX;
-
-
-  output.y =
-    correctedBodyRelativeY;
-
-
-  output.z =
-    zAxisSign
-    * correctedBodyRelativeZ;
-
+  output.x = -correctedBodyRelativeX;
+  output.y = correctedBodyRelativeY;
+  output.z = zAxisSign * correctedBodyRelativeZ;
 
   return output;
 }
 
+// ============================================================
+// APPLY SCRIPTED ROTATION + SCRIPTED TRANSLATION
+// ============================================================
+
+FootTarget DanceController::transformTarget(
+  const FootTarget &baseTarget,
+  float hipX,
+  float hipZ,
+  bool isLeftLeg,
+  const DancePose &pose
+) const {
+  FootTarget output =
+    rotateTargetUsingBalanceMath(
+      baseTarget,
+      hipX,
+      hipZ,
+      isLeftLeg,
+      pose.rollDeg,
+      pose.pitchDeg
+    );
+
+  // Body forward:
+  // leg-local +X is backward, so all feet move +X relative to body.
+  output.x += pose.forwardCm;
+
+  // Body right:
+  // left-leg local +Z points body-right, so the fixed foot moves
+  // negative local Z. Right-leg local +Z points body-left, so the
+  // fixed foot moves positive local Z.
+  if (isLeftLeg) {
+    output.z -= pose.rightCm;
+  }
+  else {
+    output.z += pose.rightCm;
+  }
+
+  // Body rises -> feet are farther below the body.
+  output.y += pose.heightCm;
+
+  return output;
+}
 
 // ============================================================
-// BUILD ALL FOUR FOOT TARGETS
+// BUILD FOUR FOOT TARGETS
 // ============================================================
 
 DanceOutput DanceController::buildOutput(
   const DancePose &pose
 ) const {
+  float halfLength = bodyLength / 2.0f;
+  float halfWidth = bodyWidth / 2.0f;
 
-  float halfLength =
-    bodyLength / 2.0f;
-
-
-  float halfWidth =
-    bodyWidth / 2.0f;
-
-
-  // Use the same COM-based rotation center as the existing
-  // balance controller.
-
+  // Same COM-based rotation center convention as BalanceController.
   float frontHipX =
-    halfLength
-    - rotationCenterOffsetX;
-
+    halfLength - rotationCenterOffsetX;
 
   float backHipX =
-    -halfLength
-    - rotationCenterOffsetX;
-
+    -halfLength - rotationCenterOffsetX;
 
   float leftHipZ =
-    -halfWidth
-    - rotationCenterOffsetZ;
-
+    -halfWidth - rotationCenterOffsetZ;
 
   float rightHipZ =
-    halfWidth
-    - rotationCenterOffsetZ;
-
+    halfWidth - rotationCenterOffsetZ;
 
   DanceOutput output;
-
-
-  // ----------------------------------------------------------
-  // FRONT LEFT
-  // ----------------------------------------------------------
 
   output.frontLeft =
     transformTarget(
       baseFrontLeft,
-
       frontHipX,
       leftHipZ,
-
       true,
-
       pose
     );
-
-
-  // ----------------------------------------------------------
-  // FRONT RIGHT
-  // ----------------------------------------------------------
 
   output.frontRight =
     transformTarget(
       baseFrontRight,
-
       frontHipX,
       rightHipZ,
-
       false,
-
       pose
     );
-
-
-  // ----------------------------------------------------------
-  // BACK LEFT
-  // ----------------------------------------------------------
 
   output.backLeft =
     transformTarget(
       baseBackLeft,
-
       backHipX,
       leftHipZ,
-
       true,
-
       pose
     );
-
-
-  // ----------------------------------------------------------
-  // BACK RIGHT
-  // ----------------------------------------------------------
 
   output.backRight =
     transformTarget(
       baseBackRight,
-
       backHipX,
       rightHipZ,
-
       false,
-
       pose
     );
-
 
   return output;
 }
 
+// ============================================================
+// INITIALIZE / START
+// ============================================================
+
+void DanceController::begin(
+  const FootTarget &frontLeft,
+  const FootTarget &frontRight,
+  const FootTarget &backLeft,
+  const FootTarget &backRight
+) {
+  baseFrontLeft = frontLeft;
+  baseFrontRight = frontRight;
+  baseBackLeft = backLeft;
+  baseBackRight = backRight;
+
+  fromPose = neutralPose();
+  currentPose = neutralPose();
+
+  activeSequence = nullptr;
+  activeFrameCount = 0;
+  frameIndex = 0;
+  frameStartTime = millis();
+
+  initialized = true;
+  running = false;
+  finished = false;
+}
+
+void DanceController::startSequence(
+  const DancePose *sequence,
+  size_t frameCount
+) {
+  if (!initialized || sequence == nullptr || frameCount == 0) {
+    return;
+  }
+
+  activeSequence = sequence;
+  activeFrameCount = frameCount;
+
+  // Every section is deliberately started from the same fixed neutral
+  // captured after the robot's first successful active balance.
+  fromPose = neutralPose();
+  currentPose = neutralPose();
+
+  frameIndex = 0;
+  frameStartTime = millis();
+
+  running = true;
+  finished = false;
+}
+
+void DanceController::startPitchRollSequence() {
+  startSequence(
+    PITCH_ROLL_SEQUENCE,
+    PITCH_ROLL_FRAME_COUNT
+  );
+}
+
+void DanceController::startSquareSequence() {
+  startSequence(
+    SQUARE_SEQUENCE,
+    SQUARE_FRAME_COUNT
+  );
+}
+
+void DanceController::forceNeutral() {
+  if (!initialized) {
+    return;
+  }
+
+  fromPose = neutralPose();
+  currentPose = neutralPose();
+
+  activeSequence = nullptr;
+  activeFrameCount = 0;
+  frameIndex = 0;
+  frameStartTime = millis();
+
+  running = false;
+  finished = false;
+}
+
+bool DanceController::isActive() const {
+  return running;
+}
+
+bool DanceController::isFinished() const {
+  return finished;
+}
 
 // ============================================================
 // UPDATE
 // ============================================================
 
 DanceOutput DanceController::update() {
-
-  // ----------------------------------------------------------
-  // NOT INITIALIZED
-  // ----------------------------------------------------------
-
   if (!initialized) {
-
-    return
-      buildOutput(
-        neutralPose()
-      );
+    return buildOutput(neutralPose());
   }
-
-
-  unsigned long now =
-    millis();
-
-
-  // ==========================================================
-  // SMOOTH STOP
-  // ==========================================================
-
-  if (stopping) {
-
-    unsigned long elapsed =
-      now
-      - stopStartTime;
-
-
-    float progress =
-      (float)elapsed
-      / (float)STOP_RETURN_TIME_MS;
-
-
-    if (progress >= 1.0f) {
-
-      currentPose =
-        neutralPose();
-
-
-      fromPose =
-        currentPose;
-
-
-      stopping =
-        false;
-
-
-      return
-        buildOutput(
-          currentPose
-        );
-    }
-
-
-    float weight =
-      smoothProgress(
-        progress
-      );
-
-
-    currentPose =
-      interpolatePose(
-        stopFromPose,
-        neutralPose(),
-        weight
-      );
-
-
-    return
-      buildOutput(
-        currentPose
-      );
-  }
-
-
-  // ==========================================================
-  // NOT RUNNING
-  // ==========================================================
 
   if (!running) {
-
-    currentPose =
-      neutralPose();
-
-
-    return
-      buildOutput(
-        currentPose
-      );
+    return buildOutput(currentPose);
   }
 
-
-  // ==========================================================
-  // RUN CURRENT CHOREOGRAPHY FRAME
-  // ==========================================================
+  unsigned long now = millis();
 
   const DancePose &targetPose =
-    DANCE_SEQUENCE[
-      frameIndex
-    ];
-
+    activeSequence[frameIndex];
 
   unsigned long duration =
     targetPose.durationMs;
 
-
   unsigned long elapsed =
-    now
-    - frameStartTime;
+    now - frameStartTime;
 
-
-  float progress =
-    1.0f;
-
+  float progress = 1.0f;
 
   if (duration > 0) {
-
     progress =
-      (float)elapsed
-      / (float)duration;
+      (float)elapsed / (float)duration;
   }
-
-
-  // ----------------------------------------------------------
-  // CURRENT FRAME FINISHED
-  // ----------------------------------------------------------
 
   if (progress >= 1.0f) {
+    currentPose = targetPose;
+    currentPose.durationMs = 0;
 
-    currentPose =
-      targetPose;
-
-
-    currentPose.durationMs =
-      0;
-
-
-    fromPose =
-      currentPose;
-
-
+    fromPose = currentPose;
     frameIndex++;
+    frameStartTime = now;
 
-
-    // Loop back to the beginning forever.
-
-    if (
-      frameIndex
-      >= DANCE_FRAME_COUNT
-    ) {
-
-      frameIndex =
-        0;
+    if (frameIndex >= activeFrameCount) {
+      running = false;
+      finished = true;
     }
 
-
-    frameStartTime =
-      now;
-
-
-    return
-      buildOutput(
-        currentPose
-      );
+    return buildOutput(currentPose);
   }
 
-
-  // ----------------------------------------------------------
-  // CURRENT FRAME STILL MOVING
-  // ----------------------------------------------------------
-
   float weight =
-    smoothProgress(
-      progress
-    );
-
+    smoothProgress(progress);
 
   currentPose =
     interpolatePose(
@@ -1359,9 +602,5 @@ DanceOutput DanceController::update() {
       weight
     );
 
-
-  return
-    buildOutput(
-      currentPose
-    );
+  return buildOutput(currentPose);
 }

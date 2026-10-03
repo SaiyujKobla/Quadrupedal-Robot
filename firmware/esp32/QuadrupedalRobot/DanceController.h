@@ -4,50 +4,26 @@
 #include <Arduino.h>
 #include "BalanceController.h"
 
-
-// ============================================================
-// DANCE POSE
-// ============================================================
+// A commanded body pose relative to the robot's fixed neutral stance
+// captured after the first successful active balance.
 //
-// forwardCm:
-//   + = body moves forward
-//   - = body moves backward
+// Coordinate/sign convention matches the existing project:
 //
-// rightCm:
-//   + = body moves right
-//   - = body moves left
+// forwardCm: + = body forward, - = body backward
+// rightCm:   + = body right,   - = body left
+// heightCm:  + = body rises,   - = body lowers
+// rollDeg:   + = left side lowers, - = right side lowers
+// pitchDeg:  + = nose lowers,      - = nose rises
 //
-// heightCm:
-//   + = body rises
-//   - = body lowers
-//
-// rollDeg:
-//   + = left side lowers
-//   - = right side lowers
-//
-// pitchDeg:
-//   + = nose lowers
-//   - = nose rises
-//
-// durationMs:
-//   time used to smoothly move INTO this pose
-// ============================================================
-
+// durationMs is the time used to move INTO this pose.
 struct DancePose {
   float forwardCm;
   float rightCm;
   float heightCm;
-
   float rollDeg;
   float pitchDeg;
-
   unsigned long durationMs;
 };
-
-
-// ============================================================
-// DANCE OUTPUT
-// ============================================================
 
 struct DanceOutput {
   FootTarget frontLeft;
@@ -56,58 +32,35 @@ struct DanceOutput {
   FootTarget backRight;
 };
 
-
-// ============================================================
-// DANCE CONTROLLER
-// ============================================================
-
 class DanceController {
 private:
-
   float bodyLength;
   float bodyWidth;
 
   float rotationCenterOffsetX;
   float rotationCenterOffsetZ;
 
-
-  // ----------------------------------------------------------
-  // BALANCED BASELINE
-  // ----------------------------------------------------------
-
   FootTarget baseFrontLeft;
   FootTarget baseFrontRight;
   FootTarget baseBackLeft;
   FootTarget baseBackRight;
 
-
-  // ----------------------------------------------------------
-  // MOTION STATE
-  // ----------------------------------------------------------
-
   DancePose fromPose;
   DancePose currentPose;
-  DancePose stopFromPose;
 
+  const DancePose *activeSequence;
+  size_t activeFrameCount;
   size_t frameIndex;
 
   unsigned long frameStartTime;
-  unsigned long stopStartTime;
 
   bool initialized;
   bool running;
-  bool stopping;
-
-
-  // Time used to smoothly return to neutral after pressing S.
-  static const unsigned long STOP_RETURN_TIME_MS = 700;
-
-
-  // ----------------------------------------------------------
-  // INTERNAL HELPERS
-  // ----------------------------------------------------------
+  bool finished;
 
   DancePose neutralPose() const;
+
+  float smoothProgress(float progress) const;
 
   DancePose interpolatePose(
     const DancePose &startPose,
@@ -115,40 +68,46 @@ private:
     float weight
   ) const;
 
-
-  float smoothProgress(
-    float progress
-  ) const;
-
-
-  FootTarget transformTarget(
+  // This uses the SAME inverse body-rotation equations as the
+  // existing BalanceController::calculateCorrectedFootTarget().
+  FootTarget rotateTargetUsingBalanceMath(
     const FootTarget &baseTarget,
-
     float hipX,
     float hipZ,
-
     bool isLeftLeg,
+    float rollDeg,
+    float pitchDeg
+  ) const;
 
+  // Rotation is calculated first with the balance-controller math.
+  // The requested body translation is then applied in the same
+  // leg-local coordinate convention already used by the robot.
+  FootTarget transformTarget(
+    const FootTarget &baseTarget,
+    float hipX,
+    float hipZ,
+    bool isLeftLeg,
     const DancePose &pose
   ) const;
 
+  DanceOutput buildOutput(const DancePose &pose) const;
 
-  DanceOutput buildOutput(
-    const DancePose &pose
-  ) const;
-
+  void startSequence(
+    const DancePose *sequence,
+    size_t frameCount
+  );
 
 public:
-
   DanceController(
     float bodyLengthCm,
     float bodyWidthCm,
-
     float rotationCenterOffsetXcm,
     float rotationCenterOffsetZcm
   );
 
-
+  // Set/reset the fixed base targets used by a scripted section.
+  // The main sketch always supplies the SAME initially balanced pose,
+  // preventing neutral-position drift across repeated routines.
   void begin(
     const FootTarget &frontLeft,
     const FootTarget &frontRight,
@@ -156,19 +115,15 @@ public:
     const FootTarget &backRight
   );
 
-
-  void start();
-
-  void stop();
+  void startPitchRollSequence();
+  void startSquareSequence();
 
   void forceNeutral();
 
-
   bool isActive() const;
-
+  bool isFinished() const;
 
   DanceOutput update();
 };
-
 
 #endif
